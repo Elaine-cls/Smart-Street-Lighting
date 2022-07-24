@@ -6,12 +6,14 @@
    software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
    CONDITIONS OF ANY KIND, either express or implied.
 */
-
 #include <stdio.h>
 #include <stdlib.h>
+#include "string.h"
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
+
 
 //libs do ADC
 #include "driver/adc.h"
@@ -20,7 +22,7 @@
 //lib do DAC
 #include "driver/dac.h"
 
-#define LED DAC_CHANNEL_1   //GPIO25 fará a leitura
+#define LED DAC_CHANNEL_1   //GPIO25 fará a escrita
 
 #define DEFAULT_VREF    1100        //Tensao de referencia
 #define NO_OF_SAMPLES   64          //taxa de amostragem
@@ -98,7 +100,7 @@ void app_main(void)
     esp_adc_cal_value_t val_type = esp_adc_cal_characterize(unit, atten, width, DEFAULT_VREF, adc_chars);
     print_char_val_type(val_type);
 
-    //Amostragem do ADC1
+     //Amostragem do ADC1
     while (1) {
         uint32_t adc_reading = 0;
         //Amostragem
@@ -120,21 +122,21 @@ void app_main(void)
         //Converter valor lido em mV
         uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
 
-        int pin = 0;
 
-        int linear = (int) -1*(255/1299)*(esp_adc_cal_raw_to_voltage(adc_reading, adc_chars));
-        uint8_t dimmer = linear + 372;
+        float linear = -1.0*(255.0/1299.0)*((float) voltage) + 372.0;
 
+        int dimmer = (int) linear;
 
-        if(voltage <= 600) {
+        if(voltage < 600) {
             dac_output_voltage(LED, 255);
-        } else {
+        } else if (voltage >= 600) {
             //dimmer = -1*(255/1299)*voltage + 372;
-            dac_output_voltage(LED, dimmer_ok);
+            dac_output_voltage(LED, dimmer);
         }
 
-        printf("Valor do dimmer %d\n", dimmer_ok);
+        printf("Valor do dimmer %d\n", dimmer);
         printf("Raw: %d\tVoltage: %dmV\n", adc_reading, voltage);
+        printf("\n");
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
