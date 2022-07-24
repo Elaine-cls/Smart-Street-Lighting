@@ -114,6 +114,7 @@ static const char* get_request_end =
 static TaskHandle_t LumControlTask = NULL;
 
 static QueueHandle_t data_manager_queue = NULL;
+static QueueHandle_t luminosity_queue = NULL;
 
 static esp_adc_cal_characteristics_t *adc_chars;
 #if CONFIG_IDF_TARGET_ESP32
@@ -226,17 +227,27 @@ static void http_get_task(void *pvParameters)
 
     while(1) {
         int arg = 0;
+        int porcentagem_luminosidade = 0;
         vTaskDelay(20000 / portTICK_PERIOD_MS);
         xQueueReset(data_manager_queue);
-        if(xQueueReceive(data_manager_queue, &arg, portMAX_DELAY)){
+        xQueueReset(luminosity_queue);
+        if(xQueueReceive(data_manager_queue, &arg, portMAX_DELAY) && xQueueReceive(luminosity_queue, &porcentagem_luminosidade, portMAX_DELAY)){
             int n;
             // conversion of values to character strings
             n = snprintf(NULL, 0, "%lu", arg);
             char field1[n+1];
             sprintf(field1, "%lu", arg);
+
+            printf("AQUIIII\n");
+            printf("%d\n",porcentagem_luminosidade);
+            n = snprintf(NULL, 0, "%lu", porcentagem_luminosidade);
+            char field2[n+1];
+            sprintf(field2, "%lu", porcentagem_luminosidade);
             
             int string_size = strlen(get_request_start);
-            string_size += strlen("&field1=")*1;
+            string_size += strlen("&field1=")*2;
+            string_size += strlen(field1);
+            string_size += strlen(field2);
             string_size += strlen(get_request_end);
             string_size += 1;  // '\0' - space for string termination character
             
@@ -246,6 +257,8 @@ static void http_get_task(void *pvParameters)
             strcpy(get_request, get_request_start);
             strcat(get_request, "&field1=");
             strcat(get_request, field1);
+            strcat(get_request, "&field2=");
+            strcat(get_request, field2);
             strcat(get_request, get_request_end);
 
             int err = getaddrinfo(WEB_SERVER, WEB_PORT, &hints, &res);
@@ -269,7 +282,6 @@ static void http_get_task(void *pvParameters)
                 continue;
             }
             ESP_LOGI(TAG, "... allocated socket");
-            printf("271 chegou aquiiiiii\n");
             if(connect(s, res->ai_addr, res->ai_addrlen) != 0) {
                 ESP_LOGE(TAG, "... socket connect failed errno=%d", errno);
                 close(s);
@@ -394,10 +406,6 @@ void LumControl(void *parameter){
                 while(adc1_get_raw((adc1_channel_t)channel) == 0) {
                     flag = 10000;
                     xQueueSend(data_manager_queue, &flag, 0);
-                    // int arg =0;
-                    // xQueueReceive(data_manager_queue, &arg, portMAX_DELAY);
-                    // printf("AQUIIIIII");
-                    // printf("%d\n", arg);
                     printf("FALHA NA LEITURA, VERIFIQUE CONEXAO DO PINO\n");
                     vTaskDelay(500 / portTICK_PERIOD_MS);
                 }
@@ -429,6 +437,10 @@ void LumControl(void *parameter){
         }
 
         printf("Valor do dimmer %d\n", dimmer);
+
+        int porcentagem_luminosidade = (dimmer/255)*100;
+        printf("PORCENTAGEM LUMINOSIDAD%d\n", porcentagem_luminosidade);
+        xQueueSend(luminosity_queue, &porcentagem_luminosidade, 0);
         printf("Raw: %d\tVoltage: %dmV\n", adc_reading, voltage);
         printf("\n");
         vTaskDelay(pdMS_TO_TICKS(1000));
@@ -440,6 +452,7 @@ void app_main(void)
 {
     // creating the queue
     data_manager_queue = xQueueCreate(1,sizeof(int));
+    luminosity_queue = xQueueCreate(1,sizeof(int));
 
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();
