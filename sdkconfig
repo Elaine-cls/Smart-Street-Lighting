@@ -313,6 +313,12 @@ CONFIG_ESP_WIFI_AUTH_OPEN=y
 # end of Example Configuration
 
 #
+# Posting data to ThinngSpeak
+#
+CONFIG_THINGSPEAK_WRITE_API_KEY="FV8HHEQE5FPTD14Y"
+# end of Posting data to ThinngSpeak
+
+#
 # Compiler options
 #
 CONFIG_COMPILER_OPTIMIZATION_DEFAULT=y
