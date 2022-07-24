@@ -225,39 +225,28 @@ static void http_get_task(void *pvParameters)
 
     while(1) {
         int arg = 0;
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
         if(xQueueReceive(data_manager_queue, &arg, portMAX_DELAY)){
-            printf("enrou");
             int n;
             // conversion of values to character strings
             n = snprintf(NULL, 0, "%lu", arg);
             char field1[n+1];
             sprintf(field1, "%lu", arg);
+            
             int string_size = strlen(get_request_start);
-            string_size += strlen("&fieldN=")*1;
+            string_size += strlen("&field1=")*1;
             string_size += strlen(get_request_end);
             string_size += 1;  // '\0' - space for string termination character
-
+            
             // request string assembly / concatenation
             char * get_request = malloc(string_size);
+            
             strcpy(get_request, get_request_start);
             strcat(get_request, "&field1=");
             strcat(get_request, field1);
             strcat(get_request, get_request_end);
 
-            //funcionando 
-            // char arg_str[20];
-            // sprintf(arg_str, "%d", arg);
-
-            // char str_final[20];
-            // strcat(strcpy(str_final, WEB_PATH), arg_str);
-
-            // static const char *REQUEST = "GET " str_final " HTTP/1.0\r\n"
-            // "Host: "WEB_SERVER":"WEB_PORT"\r\n"
-            // "User-Agent: esp-idf/1.0 esp32\r\n"
-            // "\r\n";
-
             int err = getaddrinfo(WEB_SERVER, WEB_PORT, &hints, &res);
-
             if(err != 0 || res == NULL) {
                 ESP_LOGE(TAG, "DNS lookup failed err=%d res=%p", err, res);
                 vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -278,7 +267,7 @@ static void http_get_task(void *pvParameters)
                 continue;
             }
             ESP_LOGI(TAG, "... allocated socket");
-
+            printf("271 chegou aquiiiiii\n");
             if(connect(s, res->ai_addr, res->ai_addrlen) != 0) {
                 ESP_LOGE(TAG, "... socket connect failed errno=%d", errno);
                 close(s);
@@ -429,18 +418,19 @@ void app_main(void)
         for (int i = 0; i < NO_OF_SAMPLES; i++) {
             if (unit == ADC_UNIT_1) {
                 while(adc1_get_raw((adc1_channel_t)channel) == 0) {
-                    flag = -1;
+                    flag = 10000;
                     xQueueSend(data_manager_queue, &flag, 0);
                     // int arg =0;
                     // xQueueReceive(data_manager_queue, &arg, portMAX_DELAY);
                     // printf("AQUIIIIII");
                     // printf("%d\n", arg);
                     printf("FALHA NA LEITURA, VERIFIQUE CONEXAO DO PINO\n");
-                    // vTaskDelay(10000 / portTICK_PERIOD_MS);
+                    vTaskDelay(500 / portTICK_PERIOD_MS);
                 }
                 flag = 0;
                 xQueueSend(data_manager_queue, &flag, 0);
                 adc_reading += adc1_get_raw((adc1_channel_t)channel);
+                //vTaskDelay(500 / portTICK_PERIOD_MS);
             } else {
                 int raw;
                 adc2_get_raw((adc2_channel_t)channel, width, &raw);
@@ -452,7 +442,7 @@ void app_main(void)
         //Converter valor lido em mV
         uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
         xQueueSend(data_manager_queue, &voltage, 0);
-        int pin = 0;
+        
         float linear = -1.0*(255.0/1299.0)*((float) voltage) + 372.0;
 
         int dimmer = (int) linear;
