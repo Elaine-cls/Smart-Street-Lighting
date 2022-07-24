@@ -111,6 +111,7 @@ static const char* get_request_end =
     "\n";
 
 // fim statics
+static TaskHandle_t LumControlTask = NULL;
 
 static QueueHandle_t data_manager_queue = NULL;
 
@@ -225,7 +226,7 @@ static void http_get_task(void *pvParameters)
 
     while(1) {
         int arg = 0;
-        vTaskDelay(2000 / portTICK_PERIOD_MS);
+        vTaskDelay(15000 / portTICK_PERIOD_MS);
         if(xQueueReceive(data_manager_queue, &arg, portMAX_DELAY)){
             int n;
             // conversion of values to character strings
@@ -361,35 +362,7 @@ static void print_char_val_type(esp_adc_cal_value_t val_type)
     }
 }
 
-//Funcao principal
-void app_main(void)
-{
-    // creating the queue
-    data_manager_queue = xQueueCreate(10,sizeof(int));
-
-    //Initialize NVS
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-      ESP_ERROR_CHECK(nvs_flash_erase());
-      ret = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(ret);
-
-    ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
-    wifi_init_sta();
-
-    // ESP_ERROR_CHECK( nvs_flash_init() );
-    // ESP_ERROR_CHECK(esp_netif_init());
-    // ESP_ERROR_CHECK(esp_event_loop_create_default());
-
-    /* This helper function configures Wi-Fi or Ethernet, as selected in menuconfig.
-     * Read "Establishing Wi-Fi or Ethernet Connection" section in
-     * examples/protocols/README.md for more information about this function.
-     */
-    //ESP_ERROR_CHECK(example_connect());
-
-    xTaskCreate(&http_get_task, "http_get_task", 8192, NULL, 5, NULL);
-
+void LumControl(void *parameter){
     // configurando o DAC
     dac_output_enable(LED);
     dac_output_voltage(LED, 0);
@@ -459,4 +432,37 @@ void app_main(void)
         printf("\n");
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
+}
+
+//Funcao principal
+void app_main(void)
+{
+    // creating the queue
+    data_manager_queue = xQueueCreate(10,sizeof(int));
+
+    //Initialize NVS
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+      ESP_ERROR_CHECK(nvs_flash_erase());
+      ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+
+    ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
+    wifi_init_sta();
+
+    // ESP_ERROR_CHECK( nvs_flash_init() );
+    // ESP_ERROR_CHECK(esp_netif_init());
+    // ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+    /* This helper function configures Wi-Fi or Ethernet, as selected in menuconfig.
+     * Read "Establishing Wi-Fi or Ethernet Connection" section in
+     * examples/protocols/README.md for more information about this function.
+     */
+    //ESP_ERROR_CHECK(example_connect());
+
+    xTaskCreate(&http_get_task, "http_get_task", 8192, NULL, 1, NULL);
+
+    
+    xTaskCreate(LumControl, "Sensor de luminosidade", 2048, NULL, 1, &LumControlTask);
 }
