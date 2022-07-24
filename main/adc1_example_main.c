@@ -226,7 +226,8 @@ static void http_get_task(void *pvParameters)
 
     while(1) {
         int arg = 0;
-        vTaskDelay(15000 / portTICK_PERIOD_MS);
+        vTaskDelay(20000 / portTICK_PERIOD_MS);
+        xQueueReset(data_manager_queue);
         if(xQueueReceive(data_manager_queue, &arg, portMAX_DELAY)){
             int n;
             // conversion of values to character strings
@@ -438,7 +439,7 @@ void LumControl(void *parameter){
 void app_main(void)
 {
     // creating the queue
-    data_manager_queue = xQueueCreate(10,sizeof(int));
+    data_manager_queue = xQueueCreate(1,sizeof(int));
 
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();
