@@ -232,6 +232,7 @@ static void http_get_task(void *pvParameters)
         xQueueReset(data_manager_queue);
         xQueueReset(luminosity_queue);
         if(xQueueReceive(data_manager_queue, &arg, portMAX_DELAY) && xQueueReceive(luminosity_queue, &porcentagem_luminosidade, portMAX_DELAY)){
+            printf("entrou\n");
             int n;
             // conversion of values to character strings
             n = snprintf(NULL, 0, "%lu", arg);
@@ -403,14 +404,16 @@ void LumControl(void *parameter){
         int flag = 0;
         for (int i = 0; i < NO_OF_SAMPLES; i++) {
             if (unit == ADC_UNIT_1) {
-                while(adc1_get_raw((adc1_channel_t)channel) == 0) {
+                if(adc1_get_raw((adc1_channel_t)channel) == 0) {
                     flag = 10000;
                     xQueueSend(data_manager_queue, &flag, 0);
                     printf("FALHA NA LEITURA, VERIFIQUE CONEXAO DO PINO\n");
                     vTaskDelay(500 / portTICK_PERIOD_MS);
+                } else {
+                    flag = 0;
+                    xQueueSend(data_manager_queue, &flag, 0);
                 }
-                flag = 0;
-                xQueueSend(data_manager_queue, &flag, 0);
+                
                 adc_reading += adc1_get_raw((adc1_channel_t)channel);
                 //vTaskDelay(500 / portTICK_PERIOD_MS);
             } else {
@@ -438,7 +441,7 @@ void LumControl(void *parameter){
 
         printf("Valor do dimmer %d\n", dimmer);
 
-        int porcentagem_luminosidade = (dimmer/255)*100;
+        int porcentagem_luminosidade = (dimmer/255.0)*100;
         printf("PORCENTAGEM LUMINOSIDAD%d\n", porcentagem_luminosidade);
         xQueueSend(luminosity_queue, &porcentagem_luminosidade, 0);
         printf("Raw: %d\tVoltage: %dmV\n", adc_reading, voltage);
